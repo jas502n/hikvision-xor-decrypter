@@ -1,4 +1,102 @@
-# Hikvision XOR Decrypter
+# Hikvision Decrypter (AES+XOR)
+
+## 0x01 AES ECB 128 Decrypt
+
+```
+unsigned char* aesKey = new unsigned char[16]{ 0x27, 0x99, 0x77, 0xf6, 0x2f, 0x6c, 0xfd, 0x2d, 0x91, 0xcd, 0x75, 0xb8, 0x89, 0xce, 0x0c, 0x9a };
+```
+
+**`aesKey=279977f62f6cfd2d91cd75b889ce0c9a`**
+
+利用OpenSSL解密 -aes-128-ecb
+
+Ubuntu 系统下：
+
+`openssl enc -d -in configurationFile -out decryptedoutput -aes-128-ecb -K 279977f62f6cfd2d91cd75b889ce0c9a -nosalt -md md5`
+
+得到解密文件decryptedoutput
+```
+╭─root@Ubuntu18 /tmp/test
+╰─# openssl enc -d -in configurationFile -out decryptedoutput -aes-128-ecb -K 279977f62f6cfd2d91cd75b889ce0c9a -nosalt -md md5
+╭─root@Ubuntu18 /tmp/test
+╰─# hash256 decryptedoutput
+971cf177d8d952a4eeaf2274d67dc464e0711550a742099fefca6ddd9da4b13a  decryptedoutput
+╭─root@Ubuntu18 /tmp/test
+╰─#
+```
+## 0x02 Xor Decrypt
+
+`unsigned char* xorKey = new unsigned char[4]{ 0x73, 0x8B, 0x55, 0x44 };`
+
+`xorKey = 0x73, 0x8B, 0x55, 0x44`
+
+
+#### XORDecode.java
+
+```
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+
+class XORDecode {
+    public static void main(String[] args) throws IOException {
+        
+        File file = new File("decryptedoutput");//解密文件
+        byte[] fileContents = Files.readAllBytes(file.toPath());
+        byte[] xorOutput = new byte[fileContents.length];
+
+        byte[] key = {(byte) 0x73, (byte) 0x8B, (byte) 0x55, (byte) 0x44};
+
+        for (int i = 0; i < fileContents.length; i++) {
+            xorOutput[i] = (byte) ((int) fileContents[i] ^ (int) key[i % key.length]);
+        }
+
+        FileOutputStream stream = new FileOutputStream("plaintextOutput");
+        stream.write(xorOutput);
+
+
+    }
+}
+```
+
+```
+╭─root@Ubuntu18 /tmp/test
+╰─# javac XORDecode.java
+╭─root@Ubuntu18 /tmp/test
+╰─# java XORDecode
+╭─root@Ubuntu18 /tmp/test
+╰─# hash256 plaintextOutput
+243a4e96f4e1313fe32bcc510988d5a65b4474179ca7ec92bdb66b397d8a66b6  plaintextOutput
+╭─root@Ubuntu18 /tmp/test
+╰─# string plaintextOutput > s.txt
+
+```
+
+利用grep 匹配admin上一行和下一行的内容
+
+```
+  -B, --before-context=NUM  print NUM lines of leading context
+  -A, --after-context=NUM   print NUM lines of trailing context
+```
+
+```
+╭─root@Ubuntu18 /tmp/test
+╰─# cat s.txt|grep -B 1  -A 1 'admin'
+www.hik-online.com
+admin
+12345
+--
+700783721
+admin
+ww123456
+╭─root@Ubuntu18 /tmp/test
+╰─#
+```
+
+得到密码为 **`ww123456`**
+
+
 
 ~~**FYI this script is soon going to be replaced. I am actively working on an all-encompassing utility that does all the steps listed below**~~
 
